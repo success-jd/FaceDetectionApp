@@ -7,11 +7,6 @@ import SignIn from './components/SignIn/SignIn';
 import Register from './components/Register/Register';
 import Rank from './components/Rank/Rank';
 import Particles from 'react-particles-js'
-import Clarifai from "clarifai"
-
-const app = new Clarifai.App({
-    apiKey: '4271b38dc9014046b19b32e613cc15aa'
-   });
 
 const particleOptions = {
     particles: {
@@ -25,16 +20,35 @@ const particleOptions = {
       }
     }
 
+   const initialState = {
+        input: "" ,
+        imageUrl: "",
+        box: [],
+        route: "signin",
+        isSignedIn: false,
+        user: {
+            id: "",
+            name: "",
+            email: "",
+            entries: 0,
+            joined: ""
+        }
+   } 
+
 class MainApp extends Component {
     constructor(props) {
         super(props);
-        this.state = {
-           input: "" ,
-           imageUrl: "",
-           box: [],
-           route: "signin",
-           isSignedIn: false
-        }
+        this.state = initialState
+    }
+
+    loadUser = (data) => {
+        this.setState({user: {
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            entries: data.entries,
+            joined: data.joined
+        }})
     }
 
     onInputChange = (e) => {
@@ -42,18 +56,6 @@ class MainApp extends Component {
     }
 
     calculateFaceLocation = (data) => {
-        // const clarifyFace = data.outputs[0].data.regions[0].region_info.bounding_box
-        // const image = document.getElementById("input_image")
-        // const width =  Number(image.width)
-        // const height = Number(image.height)
-        // console.log(width,height)
-
-        // return {
-        //     leftcol: clarifyFace.left_col * width,
-        //     top: clarifyFace.top_row * height,
-        //     rightcol: width - (clarifyFace.right_col * width),
-        //     bottom: height - (clarifyFace.bottom_row * height)
-        // }
         let totalNews = []
         let datas = data.outputs[0].data.regions
         datas.forEach((item) => {
@@ -81,10 +83,39 @@ class MainApp extends Component {
     onSubmit = () => {
         console.log("click")
         this.setState({ imageUrl: this.state.input})
-        app.models.predict(
-        Clarifai.FACE_DETECT_MODEL, this.state.input)
+        fetch("https://rocky-gorge-19803.herokuapp.com/apicall", {
+            method: "post",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                input: this.state.input
+            })
+        })
+        .then(res => res.json())
         .then((response) => {
-           this.displayFaceBox(this.calculateFaceLocation(response))
+            if(response) {
+                fetch("https://rocky-gorge-19803.herokuapp.com/image", {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        id: this.state.user.id
+                    })
+                }).then(response => {
+                    if(response.status === 200) {
+                        response.json()
+                        .then(res => {
+                            this.setState(Object.assign(this.state.user, { entries: res.entries}))
+                        })
+                        .catch(console.log)
+                    }
+                })
+                this.displayFaceBox(this.calculateFaceLocation(response))
+                
+            }
+           
             // do something with response
         })
         .catch((err) =>  console.log(err))
@@ -92,6 +123,7 @@ class MainApp extends Component {
     onRouteChange = (route) => {
         if( route === "signout" ) {
             this.setState({ isSignedIn: false })
+            this.setState(initialState)
         }
         else if (route === "home"){
             this.setState({ isSignedIn: true })
@@ -113,7 +145,7 @@ class MainApp extends Component {
                 { this.state.route === "home" ?
                     <div>
                         <Logo />
-                        <Rank />
+                        <Rank name={this.state.user.name} entries={this.state.user.entries}/>
                         <ImageLinkForm 
                         onSubmit={this.onSubmit}
                         onInputChange={this.onInputChange} />
@@ -122,9 +154,11 @@ class MainApp extends Component {
                     :(
                         this.state.route === "signin"
                         ?
-                        <SignIn onRouteChange={this.onRouteChange} />
+                        <SignIn onRouteChange={this.onRouteChange} 
+                        loadUser={this.loadUser}/>
                         :
-                        <Register onRouteChange={this.onRouteChange} />
+                        <Register onRouteChange={this.onRouteChange} 
+                        loadUser={this.loadUser}/>
                     )
                     
         }

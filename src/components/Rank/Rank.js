@@ -1,15 +1,16 @@
 import React from 'react';
 
 
-function Rank() {
+function Rank({ name,entries }) {
+  
   return (
     <div>
       <p className="black f2">This app only works with online pictures for security reasons</p>
       <div className="white f3">
-        {"Success, your current Rank is ....."}
+        {`${name.toUpperCase()}, your Current Rank is .....`}
       </div>
       <div className="white f1">
-        {"#5"}
+        {entries}
       </div>
     </div>
   ) 
